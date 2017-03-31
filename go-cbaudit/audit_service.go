@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/couchbase/clog"
@@ -48,12 +49,15 @@ type RealUserId struct {
 }
 
 type AuditSvc struct {
-	uri         string
-	u           string
-	p           string
-	kvaddr      string
+	uri    string
+	u      string
+	p      string
+	kvaddr string
+	client chan *mcc.Client
+
+	m sync.Mutex // Protects the fields that follow.
+
 	initialized bool
-	client      chan *mcc.Client
 }
 
 func NewAuditSvc(uri string) (*AuditSvc, error) {
@@ -72,10 +76,11 @@ func NewAuditSvc(uri string) (*AuditSvc, error) {
 		initialized: false,
 		client:      make(chan *mcc.Client, PoolClients),
 	}
-	err = service.init()
-	if err != nil {
-		return nil, err
-	}
+	// Attempt to initialize the service here. No need to check for
+	// the err returned as if the service initialization were to
+	// fail because of the server not being ready yet, we will do
+	// this lazily when the Write API is invoked.
+	service.init()
 	log.Printf("audit: created new audit service")
 	return service, nil
 }
@@ -155,7 +160,9 @@ func composeAuditRequest(eventId uint32, event interface{}) (
 	return req, nil
 }
 
-func (service *AuditSvc) init() (err error) {
+func (service *AuditSvc) init() error {
+	service.m.Lock()
+	defer service.m.Unlock()
 	if !service.initialized {
 		client, err := couchbase.ConnectWithAuthCreds(service.uri,
 			service.u, service.p)
@@ -195,7 +202,7 @@ func (service *AuditSvc) init() (err error) {
 		}
 		service.initialized = true
 	}
-	return err
+	return nil
 }
 
 func (service *AuditSvc) getClient() (*mcc.Client, error) {

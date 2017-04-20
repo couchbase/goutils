@@ -229,7 +229,7 @@ func getRealUserIdFromRequest(request *http.Request) *RealUserId {
 		return &RealUserId{"internal", "unknown"}
 	}
 
-	return &RealUserId{creds.Source(), creds.Name()}
+	return &RealUserId{creds.Domain(), creds.Name()}
 }
 
 func GetNewConnection(kvAddr string) (*mcc.Client, error) {

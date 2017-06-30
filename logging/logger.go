@@ -476,6 +476,6 @@ func Stackf(level Level, fmt string, args ...interface{}) {
 }
 
 func init() {
-	logger = NewLogger(os.Stderr, INFO, KVFORMATTER)
+	logger = NewLogger(os.Stderr, INFO, TEXTFORMATTER)
 	SetLogger(logger)
 }

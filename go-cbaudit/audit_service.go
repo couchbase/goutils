@@ -86,9 +86,6 @@ func NewAuditSvc(uri string) (*AuditSvc, error) {
 }
 
 func (service *AuditSvc) Write(eventId uint32, event interface{}) error {
-	log.Printf("audit: Writing audit event. eventId=%v, event=%v\n", eventId,
-		event)
-
 	err := service.init()
 	if err != nil {
 		return err

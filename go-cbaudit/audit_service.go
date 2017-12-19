@@ -17,7 +17,7 @@ import (
 	"github.com/couchbase/go-couchbase"
 	mc "github.com/couchbase/gomemcached"
 	mcc "github.com/couchbase/gomemcached/client"
-	"net"
+	_ "net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -92,12 +92,13 @@ func (service *AuditSvc) Write(eventId uint32, event interface{}) error {
 	}
 	client, err := service.getClient()
 	if err != nil {
-		return nil
+		return err
 	}
 	if !client.IsHealthy() {
+		log.Printf("audit: Client found unhealthy. Creating new client.")
 		newClient, err := GetNewConnection(service.kvaddr)
 		if err != nil {
-			return err
+			return fmt.Errorf("audit: unable to create new client: %v", err)
 		}
 		client = newClient
 	}
@@ -112,17 +113,12 @@ func (service *AuditSvc) writeOnClient(client *mcc.Client, eventId uint32,
 	if err != nil {
 		return err
 	}
-	conn := client.Hijack()
-	conn.(*net.TCPConn).SetWriteDeadline(time.Now().Add(WriteTimeout))
 
-	if err := client.Transmit(req); err != nil {
+	if err := client.TransmitWithDeadline(req, time.Now().Add(WriteTimeout)); err != nil {
 		return err
 	}
 
-	conn.(*net.TCPConn).SetReadDeadline(time.Now().Add(ReadTimeout))
-	res, err := client.Receive()
-	log.Printf("audit: response=%v, opcode=%v, opaque=%v, status=%v, err=%v\n",
-		res, res.Opcode, res.Opaque, res.Status, err)
+	res, err := client.ReceiveWithDeadline(time.Now().Add(ReadTimeout))
 
 	if err != nil {
 		return err
@@ -164,14 +160,11 @@ func (service *AuditSvc) init() error {
 		client, err := couchbase.ConnectWithAuthCreds(service.uri,
 			service.u, service.p)
 		if err != nil {
-			log.Printf("audit :error in connecting to url %s err %v",
-				service.uri, err)
-			return err
+			return fmt.Errorf("audit: error in connecting to url %s: %v", service.uri, err)
 		}
 		pool, err := client.GetPool("default")
 		if err != nil {
-			log.Printf("audit :error in connecting to default pool %v", err)
-			return err
+			return fmt.Errorf("audit: error in connecting to default pool: %v", err)
 		}
 		for _, p := range pool.Nodes {
 			if p.ThisNode {
@@ -193,7 +186,7 @@ func (service *AuditSvc) init() error {
 		for i := 0; i < PoolClients; i++ {
 			c, err := GetNewConnection(service.kvaddr)
 			if err != nil {
-				return fmt.Errorf("audit: Error %v", err)
+				return fmt.Errorf("audit: Unable to get connection: %v", err)
 			}
 			service.client <- c
 		}
@@ -220,8 +213,7 @@ func GetAuditBasicFields(req *http.Request) GenericFields {
 func getRealUserIdFromRequest(request *http.Request) *RealUserId {
 	creds, err := cbauth.AuthWebCreds(request)
 	if err != nil {
-		log.Printf("Error getting real user id from http request."+
-			" err=%v\n", err)
+		log.Printf("audit: unable to get real userid from request: %v", err)
 		// put unknown user in the audit log.
 		return &RealUserId{"internal", "unknown"}
 	}
@@ -233,16 +225,16 @@ func GetNewConnection(kvAddr string) (*mcc.Client, error) {
 	c, err := mcc.Connect("tcp", kvAddr)
 	if err != nil {
 		return nil, fmt.Errorf("audit: Error in connection to"+
-			" memcached %v", err)
+			" memcached: %v", err)
 	}
 	u, p, err := cbauth.GetMemcachedServiceAuth(kvAddr)
 	if err != nil {
 		return nil, fmt.Errorf("audit: Error in getting auth for"+
-			" memcached %v", err)
+			" memcached: %v", err)
 	}
 	_, err = c.Auth(u, p)
 	if err != nil {
-		return nil, fmt.Errorf("audit: Error in auth %v", err)
+		return nil, fmt.Errorf("audit: Error in auth: %v", err)
 	}
 	return c, nil
 }

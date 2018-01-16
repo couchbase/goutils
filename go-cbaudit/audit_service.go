@@ -17,11 +17,10 @@ import (
 	"github.com/couchbase/go-couchbase"
 	mc "github.com/couchbase/gomemcached"
 	mcc "github.com/couchbase/gomemcached/client"
-	_ "net"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -172,11 +171,12 @@ func (service *AuditSvc) init() error {
 				if !ok {
 					return fmt.Errorf("Error in getting memcached port")
 				}
-				h := strings.Split(p.Hostname, ":")
-				if len(h) <= 1 {
+
+				h, _, err := net.SplitHostPort(p.Hostname)
+				if err != nil || len(h) < 1 {
 					return fmt.Errorf("Invalid host string")
 				}
-				service.kvaddr = h[0] + ":" + strconv.Itoa(port)
+				service.kvaddr = net.JoinHostPort(h, strconv.Itoa(port))
 				break
 			}
 		}

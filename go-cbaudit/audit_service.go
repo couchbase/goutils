@@ -106,6 +106,18 @@ func (service *AuditSvc) Write(eventId uint32, event interface{}) error {
 	return service.writeOnClient(client, eventId, event)
 }
 
+// Get a new connection that is not part of the general pool.
+// The caller is responsible for its management.
+func (service *AuditSvc) GetNonPoolClient() (*mcc.Client, error) {
+	client, err := GetNewConnection(service.kvaddr)
+	return client, err
+}
+
+func (service *AuditSvc) WriteUsingNonPoolClient(client *mcc.Client, eventId uint32,
+	event interface{}) error {
+	return service.writeOnClient(client, eventId, event)
+}
+
 func (service *AuditSvc) writeOnClient(client *mcc.Client, eventId uint32,
 	event interface{}) error {
 	req, err := composeAuditRequest(eventId, event)

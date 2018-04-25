@@ -95,6 +95,11 @@ func (service *AuditSvc) Write(eventId uint32, event interface{}) error {
 	}
 	if !client.IsHealthy() {
 		log.Printf("audit: Client found unhealthy. Creating new client.")
+		err = client.Close()
+		if err != nil {
+			log.Printf("audit: unable to close unhealthy connection: %v", err)
+		}
+
 		newClient, err := GetNewConnection(service.kvaddr)
 		if err != nil {
 			return fmt.Errorf("audit: unable to create new client: %v", err)

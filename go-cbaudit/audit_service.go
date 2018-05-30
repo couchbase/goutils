@@ -200,7 +200,7 @@ func (service *AuditSvc) init() error {
 		if service.kvaddr == "" {
 			return fmt.Errorf("Error in getting port")
 		}
-		for i := 0; i < PoolClients; i++ {
+		for i := len(service.client); i < PoolClients; i++ {
 			c, err := GetNewConnection(service.kvaddr)
 			if err != nil {
 				return fmt.Errorf("audit: Unable to get connection: %v", err)

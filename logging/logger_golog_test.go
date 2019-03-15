@@ -89,6 +89,27 @@ func TestStub(t *testing.T) {
 	logger.Requestp(DEBUG, "This is a Request from ", Pair{"name", "test"})
 	Requestp(ERROR, "This is a Request from ", Pair{"name", "test"})
 
+	fmt.Printf("Changing to Uniform formatter\n")
+	logger.entryFormatter = &uniformFormatter{
+		callback: ComponentCallback(func() string {
+			return "COMPONENT.subcomponent"
+		}),
+	}
+	logger.SetLevel(DEBUG)
+
+	logger.Infof("This is a message from %s", "test")
+	Infof("This is a message from %s", "test")
+	logger.Infop("This is a message from ", Pair{"name", "test"}, Pair{"Queue Size", 10}, Pair{"Debug Mode", false})
+	Infop("This is a message from ", Pair{"name", "test"})
+
+	logger.Infom("This is a message from ", Map{"name": "test", "Queue Size": 10, "Debug Mode": false})
+	Infom("This is a message from ", Map{"name": "test"})
+
+	logger.Requestf(WARN, "This is a Request from %s", "test")
+	Requestf(INFO, "This is a Request from %s", "test")
+	logger.Requestp(DEBUG, "This is a Request from ", Pair{"name", "test"})
+	Requestp(ERROR, "This is a Request from ", Pair{"name", "test"})
+
 	buffer.Reset()
 	logger = NewLogger(buffer, DEBUG, KVFORMATTER)
 	logger.Infof("This is a message from test in key-value format")
@@ -106,6 +127,16 @@ func TestStub(t *testing.T) {
 	logger.Infof("This is a message from test in text format")
 	if s := string(buffer.Bytes()); strings.Contains(s, "[INFO] This is a message from test in text format") == false {
 		t.Errorf("Infof() failed %v", s)
+	}
+	buffer.Reset()
+	logger.entryFormatter = &uniformFormatter{
+		callback: ComponentCallback(func() string {
+			return "COMPONENT.subcomponent"
+		}),
+	}
+	logger.Debugf("This is a message from test in uniform format")
+	if s := string(buffer.Bytes()); strings.Contains(s, "DEBU COMPONENT.subcomponent This is a message from test in uniform format") == false {
+		t.Errorf("Debugf() failed %v", s)
 	}
 }
 

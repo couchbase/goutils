@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,6 +41,18 @@ var PoolClients = 5
 type GenericFields struct {
 	Timestamp  string     `json:"timestamp"`
 	RealUserid RealUserId `json:"real_userid"`
+}
+
+type CommonAuditFields struct {
+	GenericFields
+
+	Local  *addressFields `json:"local,omitempty"`
+	Remote *addressFields `json:"remote,omitempty"`
+}
+
+type addressFields struct {
+	Ip   string `json:"ip"`
+	Port string `json:"port,omitempty"`
 }
 
 type RealUserId struct {
@@ -225,6 +238,84 @@ func GetAuditBasicFields(req *http.Request) GenericFields {
 	uid := getRealUserIdFromRequest(req)
 	t := time.Now().Format("2006-01-02T15:04:05.000Z07:00")
 	return GenericFields{t, *uid}
+}
+
+/*
+The following function should be used by go services to log audit-log information common across all services.
+Presently, timestamp, user, local/remote endpoint ip-address have been taken care of.
+
+Logical fields to be added here in future would be:
+additional node-level information, if any.
+cluster-name
+etc.
+
+W.r.t the "local" address, i.e., the ip-address / port the service is listening on for connection requests:
+The ticket https://issues.couchbase.com/browse/MB-40204 has sample code provided by James Lee / Daniel Owen on
+how to extract the local address information for go services.
+
+go services that do not setup a ConnContext function in httpServer will get a different behavior wherein the
+"local" address information is extracted from the HttpRequest.Host header.
+*/
+
+func GetCommonAuditFields(req *http.Request) CommonAuditFields {
+
+	gf := GetAuditBasicFields(req)
+
+	var l string
+
+	var portValidator func(port string) bool
+
+	if req.Context().Value("conn") != nil {
+
+		conn := req.Context().Value("conn").(net.Conn)
+		l = conn.LocalAddr().String()
+
+	} else {
+
+		l = req.Host
+
+		portValidator = func(port string) bool {
+			_, err := strconv.Atoi(port)
+        		if err != nil {
+                		return true
+        		}
+
+			return false
+		}
+	}
+
+	// remote address always comes out from the connection; no validation necessary
+	remote := parseAddress(req.RemoteAddr, nil)
+
+	// local can come either out of the connection context, or from HttpRequest.Host header (untrusted).
+	// Need to validate if we try extract the address from an untrusted source.
+	local := parseAddress(l, portValidator)
+
+	return CommonAuditFields{gf, local, remote}
+}
+
+func parseAddress(addr string, portValidator func(port string) bool) *addressFields {
+	if addr == "" {
+		return nil
+	}
+
+	lastColon := strings.LastIndex(addr, ":")
+	if lastColon == -1 {
+		// No host:port separator. Put everything in Ip field.
+		return &addressFields{Ip: addr}
+	}
+
+	host := addr[:lastColon]
+	port := addr[lastColon+1:] // Not including the colon itself.
+
+	if portValidator != nil {
+		if invalidPort := portValidator(port); invalidPort {
+			log.Printf("Auditing: unable to parse port %s of address %s", port, addr)
+			return &addressFields{Ip: addr}
+		}
+	}
+
+	return &addressFields{Ip: host, Port: port}
 }
 
 func getRealUserIdFromRequest(request *http.Request) *RealUserId {

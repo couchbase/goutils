@@ -25,69 +25,66 @@ func setLogWriter(w io.Writer, lvl Level, fmtLogging LogEntryFormatter) {
 	SetLogger(logger)
 }
 
+func logMessages(logger *goLogger) {
+	logger.Debugf("This is a message from %s", "Debugf")
+	logger.Tracef("This is a message from %s", "Tracef")
+	logger.Requestf(logging.WARN, "This is a message from %s", "Requestf")
+	logger.Infof("This is a message from %s", "Infof")
+	logger.Warnf("This is a message from %s", "Warnf")
+	logger.Errorf("This is a message from %s", "Errorf")
+	logger.Severef("This is a message from %s", "Severef")
+	logger.Fatalf("This is a message from %s", "Fatalf")
+
+	Debugf("This is a message from %s", "Debugf")
+	Tracef("This is a message from %s", "Tracef")
+	Requestf(logging.WARN, "This is a message from %s", "Requestf")
+	Infof("This is a message from %s", "Infof")
+	Warnf("This is a message from %s", "Warnf")
+	Errorf("This is a message from %s", "Errorf")
+	Severef("This is a message from %s", "Severef")
+	Fatalf("This is a message from %s", "Fatalf")
+
+	logger.Debuga(func() string { return "This is a message from Debuga" })
+	logger.Tracea(func() string { return "This is a message from Tracea" })
+	logger.Requesta(logging.WARN, func() string { return "This is a message from Requesta" })
+	logger.Infoa(func() string { return "This is a message from Infoa" })
+	logger.Warna(func() string { return "This is a message from Warna" })
+	logger.Errora(func() string { return "This is a message from Errora" })
+	logger.Severea(func() string { return "This is a message from Severea" })
+	logger.Fatala(func() string { return "This is a message from Fatala" })
+
+	Debuga(func() string { return "This is a message from Debuga" })
+	Tracea(func() string { return "This is a message from Tracea" })
+	Requesta(logging.WARN, func() string { return "This is a message from Requesta" })
+	Infoa(func() string { return "This is a message from Infoa" })
+	Warna(func() string { return "This is a message from Warna" })
+	Errora(func() string { return "This is a message from Errora" })
+	Severea(func() string { return "This is a message from Severea" })
+	Fatala(func() string { return "This is a message from Fatala" })
+}
+
 func TestStub(t *testing.T) {
 	logger := NewLogger(os.Stdout, DEBUG, KVFORMATTER)
 	SetLogger(logger)
 
-	logger.Infof("This is a message from %s", "test")
-	Infof("This is a message from %s", "test")
-	logger.Infop("This is a message from ", Pair{"name", "test"}, Pair{"Queue Size", 10}, Pair{"Debug Mode", false})
-	Infop("This is a message from ", Pair{"name", "test"})
-
-	logger.Infom("This is a message from ", Map{"name": "test", "Queue Size": 10, "Debug Mode": false})
-	Infom("This is a message from ", Map{"name": "test"})
-
-	logger.Requestf(WARN, "This is a Request from %s", "test")
-	Requestf(INFO, "This is a Request from %s", "test")
-	logger.Requestp(DEBUG, "This is a Request from ", Pair{"name", "test"})
-	Requestp(ERROR, "This is a Request from ", Pair{"name", "test"})
+	logMessages(logger)
 
 	logger.SetLevel(WARN)
 	fmt.Printf("Log level is %s\n", logger.Level())
 
-	logger.Requestf(WARN, "This is a Request from %s", "test")
-	Requestf(INFO, "This is a Request from %s", "test")
-	logger.Requestp(DEBUG, "This is a Request from ", Pair{"name", "test"})
-	Requestp(ERROR, "This is a Request from ", Pair{"name", "test"})
-
-	logger.Warnf("This is a message from %s", "test")
-	Infof("This is a message from %s", "test")
-	logger.Debugp("This is a message from ", Pair{"name", "test"})
-	Errorp("This is a message from ", Pair{"name", "test"})
+	logMessages(logger)
 
 	fmt.Printf("Changing to json formatter\n")
 	logger.entryFormatter = &jsonFormatter{}
 	logger.SetLevel(DEBUG)
 
-	logger.Infof("This is a message from %s", "test")
-	Infof("This is a message from %s", "test")
-	logger.Infop("This is a message from ", Pair{"name", "test"}, Pair{"Queue Size", 10}, Pair{"Debug Mode", false})
-	Infop("This is a message from ", Pair{"name", "test"})
-
-	logger.Infom("This is a message from ", Map{"name": "test", "Queue Size": 10, "Debug Mode": false})
-	Infom("This is a message from ", Map{"name": "test"})
-
-	logger.Requestf(WARN, "This is a Request from %s", "test")
-	Requestf(INFO, "This is a Request from %s", "test")
-	logger.Requestp(DEBUG, "This is a Request from ", Pair{"name", "test"})
-	Requestp(ERROR, "This is a Request from ", Pair{"name", "test"})
+	logMessages(logger)
 
 	fmt.Printf("Changing to Text formatter\n")
 	logger.entryFormatter = &textFormatter{}
 	logger.SetLevel(DEBUG)
 
-	logger.Infof("This is a message from %s", "test")
-	Infof("This is a message from %s", "test")
-	logger.Infop("This is a message from ", Pair{"name", "test"}, Pair{"Queue Size", 10}, Pair{"Debug Mode", false})
-	Infop("This is a message from ", Pair{"name", "test"})
-
-	logger.Infom("This is a message from ", Map{"name": "test", "Queue Size": 10, "Debug Mode": false})
-	Infom("This is a message from ", Map{"name": "test"})
-
-	logger.Requestf(WARN, "This is a Request from %s", "test")
-	Requestf(INFO, "This is a Request from %s", "test")
-	logger.Requestp(DEBUG, "This is a Request from ", Pair{"name", "test"})
-	Requestp(ERROR, "This is a Request from ", Pair{"name", "test"})
+	logMessages(logger)
 
 	fmt.Printf("Changing to Uniform formatter\n")
 	logger.entryFormatter = &uniformFormatter{
@@ -97,18 +94,7 @@ func TestStub(t *testing.T) {
 	}
 	logger.SetLevel(DEBUG)
 
-	logger.Infof("This is a message from %s", "test")
-	Infof("This is a message from %s", "test")
-	logger.Infop("This is a message from ", Pair{"name", "test"}, Pair{"Queue Size", 10}, Pair{"Debug Mode", false})
-	Infop("This is a message from ", Pair{"name", "test"})
-
-	logger.Infom("This is a message from ", Map{"name": "test", "Queue Size": 10, "Debug Mode": false})
-	Infom("This is a message from ", Map{"name": "test"})
-
-	logger.Requestf(WARN, "This is a Request from %s", "test")
-	Requestf(INFO, "This is a Request from %s", "test")
-	logger.Requestp(DEBUG, "This is a Request from ", Pair{"name", "test"})
-	Requestp(ERROR, "This is a Request from ", Pair{"name", "test"})
+	logMessages(logger)
 
 	buffer.Reset()
 	logger = NewLogger(buffer, DEBUG, KVFORMATTER)

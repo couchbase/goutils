@@ -13,10 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/couchbase/cbauth"
-	"github.com/couchbase/go-couchbase"
-	mc "github.com/couchbase/gomemcached"
-	mcc "github.com/couchbase/gomemcached/client"
 	"net"
 	"net/http"
 	"net/url"
@@ -24,6 +20,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/couchbase/cbauth"
+	"github.com/couchbase/go-couchbase"
+	mc "github.com/couchbase/gomemcached"
+	mcc "github.com/couchbase/gomemcached/client"
 
 	log "github.com/couchbase/clog"
 )
@@ -61,11 +62,12 @@ type RealUserId struct {
 }
 
 type AuditSvc struct {
-	uri    string
-	u      string
-	p      string
-	kvaddr string
-	client chan *mcc.Client
+	uri       string
+	u         string
+	p         string
+	localhost string
+	kvaddr    string
+	client    chan *mcc.Client
 
 	m sync.Mutex // Protects the fields that follow.
 
@@ -81,10 +83,12 @@ func NewAuditSvc(uri string) (*AuditSvc, error) {
 	if err != nil {
 		return nil, err
 	}
+	localhost, _, _ := net.SplitHostPort(parsedUri.Host)
 	service := &AuditSvc{
 		uri:         uri,
 		u:           u,
 		p:           p,
+		localhost:   localhost,
 		initialized: false,
 		client:      make(chan *mcc.Client, PoolClients),
 	}
@@ -202,9 +206,14 @@ func (service *AuditSvc) init() error {
 					return fmt.Errorf("Error in getting memcached port")
 				}
 
-				h, _, err := net.SplitHostPort(p.Hostname)
-				if err != nil || len(h) < 1 {
-					return fmt.Errorf("Invalid host string")
+				var h string
+				if service.localhost != "" {
+					h = service.localhost
+				} else {
+					h, _, err = net.SplitHostPort(p.Hostname)
+					if err != nil || len(h) < 1 {
+						return fmt.Errorf("Invalid host string")
+					}
 				}
 				service.kvaddr = net.JoinHostPort(h, strconv.Itoa(port))
 				break
@@ -276,9 +285,9 @@ func GetCommonAuditFields(req *http.Request) CommonAuditFields {
 
 		portValidator = func(port string) bool {
 			_, err := strconv.Atoi(port)
-        		if err != nil {
-                		return true
-        		}
+			if err != nil {
+				return true
+			}
 
 			return false
 		}

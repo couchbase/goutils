@@ -104,12 +104,12 @@ func x509KeyPair(certPEMBlock, keyPEMBlock, privateKeyPassphrase []byte) (
 	// to check that it looks sane and matches the private key.
 	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
-		return fail(fmt.Errorf("x509KeyPair: ParseCertificate, err: %v", err))
+		return fail(fmt.Errorf("x509KeyPair: ParseCertificate returned err: %v", err))
 	}
 
 	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes, privateKeyPassphrase)
 	if err != nil {
-		return fail(fmt.Errorf("x509KeyPair: parsePrivateKey, err: %v", err))
+		return fail(fmt.Errorf("x509KeyPair: parsePrivateKey returned err: %v", err))
 	}
 
 	switch pub := x509Cert.PublicKey.(type) {
@@ -146,22 +146,39 @@ func x509KeyPair(certPEMBlock, keyPEMBlock, privateKeyPassphrase []byte) (
 
 // uses ParsePKCS8PrivateKey from youmark/pkcs8 package to add support for encrypted pkcs#8 private keys.
 func parsePrivateKey(der, privateKeyPassphrase []byte) (crypto.PrivateKey, error) {
+	// Adding some error logging in case none of the parseKey functions work
+	// this would help in quickly finding issues with key being incorrect
+	var errstr string
 	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
 		return key, nil
+	} else {
+		errstr = err.Error()
 	}
-
-	if key, err := pkcs8.ParsePKCS8PrivateKey(der, privateKeyPassphrase); err == nil {
-		switch key := key.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+	// youmark ParsePKCS8PrivateKey in the stable version v1.1 that we use has a bug; it does not check correctly for nil passphrase
+	// due to which it does not check for unencrypted pkcs8 key so we do it here.
+	if len(privateKeyPassphrase) == 0 {
+		if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
 			return key, nil
-		default:
-			return nil, fmt.Errorf("parsePrivateKey: unknown private key type")
+		} else {
+			errstr += "; " + err.Error()
+		}
+	} else {
+		if key, err := pkcs8.ParsePKCS8PrivateKey(der, privateKeyPassphrase); err == nil {
+			switch key := key.(type) {
+			case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+				return key, nil
+			default:
+				return nil, fmt.Errorf("parsePrivateKey: unknown private key type")
+			}
+		} else {
+			errstr += "; " + err.Error()
 		}
 	}
 
 	if key, err := x509.ParseECPrivateKey(der); err == nil {
 		return key, nil
+	} else {
+		errstr += "; " + err.Error()
 	}
-
-	return nil, fmt.Errorf("parsePrivateKey: failed to parse private key")
+	return nil, fmt.Errorf("parsePrivateKey: failed to parse private key. Error: %v", errstr)
 }

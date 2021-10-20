@@ -101,7 +101,7 @@ type completeSystemEvent struct {
 
 //
 const (
-	eventTimestampFormat = "2006-01-02T15:04:05.999Z"
+	eventTimestampFormat = "2006-01-02T15:04:05.000Z"
 
 	systemEventPath = "/_event"
 )

@@ -198,6 +198,7 @@ func (service *AuditSvc) init() error {
 		if err != nil {
 			return fmt.Errorf("audit: error in connecting to default pool: %v", err)
 		}
+		defer pool.Close()
 		for _, p := range pool.Nodes {
 			if p.ThisNode {
 				port, ok := p.Ports["direct"]

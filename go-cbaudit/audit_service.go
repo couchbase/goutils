@@ -331,8 +331,9 @@ func getRealUserIdFromRequest(request *http.Request) *RealUserId {
 	creds, err := cbauth.AuthWebCreds(request)
 	if err != nil {
 		log.Printf("audit: unable to get real userid from request: %v", err)
+
 		// put unknown user in the audit log.
-		return &RealUserId{"internal", "unknown"}
+		return &RealUserId{"local", "unknown"}
 	}
 
 	return &RealUserId{creds.Domain(), creds.Name()}

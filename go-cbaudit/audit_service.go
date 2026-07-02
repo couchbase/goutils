@@ -132,6 +132,9 @@ func (service *AuditSvc) Write(eventId uint32, event interface{}) error {
 // Get a new connection that is not part of the general pool.
 // The caller is responsible for its management.
 func (service *AuditSvc) GetNonPoolClient() (*mcc.Client, error) {
+	if err := service.init(); err != nil {
+		return nil, err
+	}
 	client, err := GetNewConnection(service.kvaddr)
 	return client, err
 }
@@ -193,6 +196,16 @@ func (service *AuditSvc) init() error {
 	if !service.initialized {
 		client, err := couchbase.ConnectWithAuthCreds(service.uri,
 			service.u, service.p)
+		if err != nil {
+			// Credentials may have rotated since NewAuditSvc; retry with fresh ones.
+			parsedUri, pErr := url.Parse(service.uri)
+			if pErr == nil {
+				if u, p, aErr := cbauth.GetHTTPServiceAuth(parsedUri.Host); aErr == nil {
+					service.u, service.p = u, p
+					client, err = couchbase.ConnectWithAuthCreds(service.uri, u, p)
+				}
+			}
+		}
 		if err != nil {
 			return fmt.Errorf("audit: error in connecting to url %s: %v", service.uri, err)
 		}

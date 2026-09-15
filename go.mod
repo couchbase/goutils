@@ -14,3 +14,5 @@ require (
 )
 
 require github.com/google/flatbuffers v24.3.25+incompatible // indirect
+
+replace golang.org/x/crypto v0.46.0 => golang.org/x/crypto v0.46.0-aikido.2

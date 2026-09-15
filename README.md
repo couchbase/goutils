@@ -17,3 +17,11 @@ Common utility libraries for Couchbase Go code.
 ## Installation
 
 git clone git@github.com:couchbase/goutils.git
+
+## Development Setup
+
+Before running any `go` commands, configure the Go proxy:
+
+```bash
+export GOPROXY=https://go.aikido.io/c09059e8f4b962b0d8ee,https://proxy.golang.org,direct
+```
